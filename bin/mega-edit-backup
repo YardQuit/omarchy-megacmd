@@ -1,0 +1,21 @@
+#!/bin/bash
+# mega-edit-backup: change a MEGA backup's schedule and versions kept.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Usage: mega-edit-backup TAG [CURRENT_PERIOD] [CURRENT_KEEP]
+#
+# Offers the current values first, so only what should change needs picking.
+# Backups already made are left as they are.
+
+set -uo pipefail
+source "$(dirname "$(realpath "$0")")/guided.sh"
+
+tag=${1:-}
+[[ $tag =~ ^[0-9]+$ ]] || die "Usage: mega-edit-backup TAG [CURRENT_PERIOD] [CURRENT_KEEP]"
+require_login
+
+period=$(choose_period "${2:-}")
+keep=$(choose_keep "${3:-14}")
+
+gum confirm "Back up with period \"$period\", keeping $keep?" || exit 1
+mega-backup "$tag" --period="$period" --num-backups="$keep" || die "MEGAcmd could not change the backup."

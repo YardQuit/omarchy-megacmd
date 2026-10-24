@@ -1,0 +1,25 @@
+#!/bin/bash
+# mega-add-backup: set up a scheduled MEGA backup in a guided terminal dialog.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Usage: mega-add-backup [SUGGESTED_MEGA_FOLDER]
+#
+# Asks for a local folder, a MEGA folder to keep the backups in (suggested
+# SUGGESTED_MEGA_FOLDER), a schedule and the number of backups to keep. Each
+# backup is a dated copy, "<folder name>_bk_<time>", made by MEGAcmd.
+
+set -uo pipefail
+source "$(dirname "$(realpath "$0")")/guided.sh"
+
+parent=${1:-/Backups}
+require_login
+
+local_folder=$(choose_local_folder "Local folder to back up")
+remote_folder=$(choose_remote_folder "MEGA folder to keep the backups of $local_folder in" "$parent")
+
+period=$(choose_period)
+keep=$(choose_keep 14)
+
+gum confirm "Back up $local_folder to $remote_folder (period \"$period\", keeping $keep)?" || exit 1
+ensure_remote_folder "$remote_folder"
+mega-backup "$local_folder" "$remote_folder" --period="$period" --num-backups="$keep" || die "MEGAcmd could not add the backup."

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "id": "yardquit.mega",
+  "name": "MEGA",
+  "version": "0.1.0",
+  "author": "yardquit",
+  "license": "GPL-3.0-or-later",
+  "description": "MEGA sync folders, backups, storage and transfers in the Omarchy bar, using MEGAcmd.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "MEGA",
+    "description": "Pause, resume, add and remove MEGA syncs and backups.",
+    "category": "Files",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 60,
+      "syncFolder": "/",
+      "backupFolder": "/Backups"
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "description": "How often to check MEGAcmd while the panel is closed.",
+        "min": 10,
+        "max": 3600,
+        "step": 5,
+        "defaultValue": 60
+      },
+      {
+        "key": "syncFolder",
+        "type": "string",
+        "label": "MEGA folder for new syncs",
+        "description": "Suggested parent folder in MEGA when adding a sync.",
+        "defaultValue": "/"
+      },
+      {
+        "key": "backupFolder",
+        "type": "string",
+        "label": "MEGA folder for backups",
+        "description": "Suggested parent folder in MEGA when adding a backup.",
+        "defaultValue": "/Backups"
+      }
+    ]
+  }
+}

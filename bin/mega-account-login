@@ -1,0 +1,20 @@
+#!/bin/bash
+# mega-account-login: log in to MEGA through MEGAcmd's interactive shell.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# The interactive shell asks for the password itself, so it never appears in
+# a command line or the shell history.
+
+set -uo pipefail
+
+if mega-whoami >/dev/null 2>&1; then
+  echo "Already logged in: $(mega-whoami 2>/dev/null | sed -n 's/^Account e-mail: *//p')"
+  exit 0
+fi
+
+email=$(gum input --header="MEGA account email" --placeholder="you@example.com") || exit 1
+[[ -n $email ]] || exit 1
+
+gum style "At the MEGA CMD> prompt, type:" "" "  login $email" "" \
+  "then your password (and 2FA code if asked), and finally: exit"
+exec mega-cmd

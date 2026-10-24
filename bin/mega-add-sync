@@ -1,0 +1,22 @@
+#!/bin/bash
+# mega-add-sync: set up a new MEGA sync folder in a guided terminal dialog.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Usage: mega-add-sync [SUGGESTED_MEGA_PARENT]
+#
+# Asks for a local folder and a MEGA folder (suggested as
+# SUGGESTED_MEGA_PARENT/<local folder name>), creates the MEGA folder when
+# needed and starts keeping both the same with MEGAcmd.
+
+set -uo pipefail
+source "$(dirname "$(realpath "$0")")/guided.sh"
+
+parent=${1:-/}
+require_login
+
+local_folder=$(choose_local_folder "Local folder to sync")
+remote_folder=$(choose_remote_folder "MEGA folder to keep in sync with $local_folder" "$(remote_join "$parent" "$(basename "$local_folder")")")
+
+gum confirm "Sync $local_folder with $remote_folder in MEGA?" || exit 1
+ensure_remote_folder "$remote_folder"
+mega-sync "$local_folder" "$remote_folder" || die "MEGAcmd could not add the sync."

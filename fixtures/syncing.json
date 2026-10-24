@@ -1,0 +1,58 @@
+{
+  "ok": true,
+  "installed": true,
+  "loggedIn": true,
+  "email": "user@example.com",
+  "usedBytes": 923589767331,
+  "totalBytes": 2199023255552,
+  "usagePercent": 42.0,
+  "syncs": [
+    {
+      "id": "sync001",
+      "local": "/home/user/Documents",
+      "remote": "/Sync/Documents",
+      "runState": "Running",
+      "status": "Synced",
+      "error": "",
+      "size": "1.20 GB",
+      "files": 120,
+      "dirs": 10
+    },
+    {
+      "id": "sync002",
+      "local": "/home/user/Projects",
+      "remote": "/Sync/Projects",
+      "runState": "Running",
+      "status": "Syncing",
+      "error": "",
+      "size": "3.40 GB",
+      "files": 860,
+      "dirs": 10
+    }
+  ],
+  "backups": [
+    {
+      "tag": "101",
+      "local": "/home/user/Pictures",
+      "remote": "/Backups",
+      "state": "ACTIVE",
+      "maxBackups": 14,
+      "period": "0 0 2 * * *",
+      "next": "Sun, 25 Oct 2026 02:00:00 +0100",
+      "lastName": "Pictures_bk_20261024020000",
+      "lastDate": "Sat, 24 Oct 2026 02:00:00 +0200",
+      "lastStatus": "COMPLETE"
+    }
+  ],
+  "transfers": {
+    "downloads": 0,
+    "uploads": 37,
+    "downloaded": "",
+    "downloadTotal": "",
+    "uploaded": "120.00 MB",
+    "uploadTotal": "410.00 MB",
+    "downloadPercent": 0.0,
+    "uploadPercent": 29.3
+  },
+  "error": ""
+}
