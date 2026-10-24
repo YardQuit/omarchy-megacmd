@@ -12,6 +12,8 @@ instead of the MEGAsync desktop app.
 - A desktop notification once per problem: a sync error, a failed backup,
   being logged out, and storage use crossing 90% and 95%.
 
+![The panel open under the bar icon](preview.png)
+
 ## Requirements
 
 - Omarchy with its Quickshell bar (`omarchy-shell`).
@@ -43,6 +45,18 @@ instead of the MEGAsync desktop app.
 
 If MEGAsync is installed, quit it before adding the same folders here: two
 programs syncing one folder produce conflicting copies.
+
+## Removal
+
+```sh
+omarchy plugin remove yardquit.mega
+systemctl --user disable --now mega-cmd-server.service
+rm ~/.config/systemd/user/mega-cmd-server.service
+```
+
+Removing the widget leaves MEGAcmd's syncs and backups as they are; stopping
+the engine pauses them until it runs again. Remove them in the panel first to
+stop them for good.
 
 ## Use
 

@@ -33,7 +33,8 @@ Item {
   property bool loaded: false
 
   readonly property string pluginDir: decodeURIComponent(String(Qt.resolvedUrl(".")).replace(/^file:\/\//, "")).replace(/\/$/, "")
-  readonly property string home: Quickshell.env("HOME")
+  // The saved states in fixtures/ are written for the home folder /home/user.
+  readonly property string home: previewName !== "" ? "/home/user" : Quickshell.env("HOME")
   readonly property string kind: Model.overallKind({ loggedIn: loggedIn, syncs: syncs, transfers: transfers, usagePercent: usagePercent })
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 60, 10, 3600)
   readonly property string syncFolder: String(setting("syncFolder", "/"))

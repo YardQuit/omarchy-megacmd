@@ -20,8 +20,8 @@
     },
     {
       "id": "sync002",
-      "local": "/home/user/Projects",
-      "remote": "/Sync/Projects",
+      "local": "/home/user/Work",
+      "remote": "/Sync/Work",
       "runState": "Running",
       "status": "Synced",
       "error": "",
