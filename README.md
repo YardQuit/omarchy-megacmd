@@ -116,6 +116,15 @@ Previews also send their notifications, marked "(preview)". While a preview
 is shown, the panel's actions do nothing, as its syncs and backups are only
 examples.
 
+## Privacy
+
+Other accounts on the same computer can see the command lines of running
+programs. The widget's regular status check passes no folder names, and its
+notifications name none. Folder paths do appear in command lines when you act
+yourself: opening a folder starts the file manager with its path, and adding
+or changing a sync or backup runs MEGAcmd's commands, which take the paths as
+arguments, in a terminal that also shows the suggested MEGA folder.
+
 ## Development
 
 Clone the repository and link it into Omarchy's plugin folder:

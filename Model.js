@@ -119,16 +119,20 @@ function backupMeta(backup) {
   return parts.join(" · ")
 }
 
-// Transfer summary, e.g. "6,838 downloads · 6.35 GB of 42.49 GB (15%)", or "".
+// One direction of a transfer summary, e.g. "6,838 down · 6.35 GB of 42.49 GB (15%)".
+function transferLine(count, direction, done, total, percent) {
+  return count.toLocaleString(Qt.locale(), "f", 0) + " " + direction + " · " + done + " of " + total +
+         " (" + Math.round(percent) + "%)"
+}
+
+// Transfer summary, one line per direction with transfers, or "".
 function transfersText(transfers) {
   if (!transfers) return ""
   var parts = []
   if (transfers.downloads > 0)
-    parts.push(transfers.downloads.toLocaleString(Qt.locale(), "f", 0) + " down · " + transfers.downloaded + " of " +
-               transfers.downloadTotal + " (" + Math.round(transfers.downloadPercent) + "%)")
+    parts.push(transferLine(transfers.downloads, "down", transfers.downloaded, transfers.downloadTotal, transfers.downloadPercent))
   if (transfers.uploads > 0)
-    parts.push(transfers.uploads.toLocaleString(Qt.locale(), "f", 0) + " up · " + transfers.uploaded + " of " +
-               transfers.uploadTotal + " (" + Math.round(transfers.uploadPercent) + "%)")
+    parts.push(transferLine(transfers.uploads, "up", transfers.uploaded, transfers.uploadTotal, transfers.uploadPercent))
   return parts.join("\n")
 }
 

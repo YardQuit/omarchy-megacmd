@@ -110,46 +110,41 @@ def split_backup_row(line):
     return {"tag": match.group(1), "local": match.group(2), "remote": match.group(3), "state": match.group(4)}
 
 
-def parse_backups(details, history):
-    """Combine `mega-backup -l` and `mega-backup -h` output into one list."""
+def parse_backups(text):
+    """Return the backups in `mega-backup -l -h` output, each with its newest history entry.
+
+    The output lists each backup as a table row followed by its details and
+    its history of backups, oldest first.
+    """
     backups = {}
     order = []
     current = None
-    for line in details.splitlines():
+    in_history = False
+    for line in text.splitlines():
         row = split_backup_row(line)
         if row:
-            row.update({"maxBackups": 0, "period": "", "next": "", "lastName": "", "lastDate": "", "lastStatus": ""})
-            backups[row["tag"]] = row
-            order.append(row["tag"])
-            current = row
+            current = backups.get(row["tag"])
+            if current is None:
+                row.update({"maxBackups": 0, "period": "", "next": "", "lastName": "", "lastDate": "", "lastStatus": ""})
+                current = backups[row["tag"]] = row
+                order.append(row["tag"])
+            in_history = False
             continue
         if current is None:
             continue
         stripped = line.strip()
-        if stripped.startswith("Max Backups:"):
+        if "HISTORY OF BACKUPS" in line:
+            in_history = True
+        elif in_history:
+            entry = re.match(r"^\s+(.*\S)\s{2,}(\w{3}, .*?\d{4} \d\d:\d\d:\d\d [+-]\d{4})\s+(\S+)", line)
+            if entry and not stripped.startswith("NAME"):
+                current["lastName"], current["lastDate"], current["lastStatus"] = entry.groups()
+        elif stripped.startswith("Max Backups:"):
             current["maxBackups"] = to_int(stripped.split(":", 1)[1])
         elif stripped.startswith("Period:"):
             current["period"] = stripped.split(":", 1)[1].strip().strip('"')
         elif stripped.startswith("Next backup scheduled for:"):
             current["next"] = stripped.split(":", 1)[1].strip()
-
-    current = None
-    in_history = False
-    for line in history.splitlines():
-        row = split_backup_row(line)
-        if row:
-            current = backups.get(row["tag"])
-            in_history = False
-            continue
-        if "HISTORY OF BACKUPS" in line:
-            in_history = True
-            continue
-        if not (current and in_history) or line.strip().startswith("NAME"):
-            continue
-        entry = re.match(r"^\s+(.*\S)\s{2,}(\w{3}, .*?\d{4} \d\d:\d\d:\d\d [+-]\d{4})\s+(\S+)", line)
-        if entry:
-            # History lists oldest first; keep the newest.
-            current["lastName"], current["lastDate"], current["lastStatus"] = entry.groups()
 
     return [backups[tag] for tag in order]
 
@@ -225,9 +220,8 @@ def main():
     if unreadable:
         status["error"] = "Some syncs could not be read; list them with mega-sync in a terminal"
 
-    _, details = run(["mega-backup", "-l", WIDE_PATHS], timeout)
-    _, history = run(["mega-backup", "-h", WIDE_PATHS], timeout)
-    status["backups"] = parse_backups(details, history)
+    _, out = run(["mega-backup", "-l", "-h", WIDE_PATHS], timeout)
+    status["backups"] = parse_backups(out)
 
     _, out = run(["mega-transfers", "--summary"], timeout)
     status["transfers"] = parse_transfers(out)

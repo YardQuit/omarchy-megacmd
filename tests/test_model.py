@@ -20,12 +20,13 @@ HOME = "/home/user"
 
 # Loads Model.js without its QML ".pragma library" line, calls the function
 # named in argv[2] with the JSON array of arguments read from standard input,
-# and prints the result as JSON.
+# and prints the result as JSON. Qt.locale() stands in as Node's default
+# locale, so numbers are grouped as in English ("1,200").
 RUNNER = """
 const fs = require("fs");
 const vm = require("vm");
 const source = fs.readFileSync(process.argv[1], "utf8").replace(/^\\.pragma library$/m, "");
-const context = {};
+const context = { Qt: { locale: function() { return undefined; } } };
 vm.runInNewContext(source, context);
 const args = JSON.parse(fs.readFileSync(0, "utf8"));
 process.stdout.write(JSON.stringify(context[process.argv[2]](...args)));
@@ -105,6 +106,13 @@ class ActionStateTests(unittest.TestCase):
         self.assertEqual(call("itemKey", "sync", syncs[1]), "sync:" + syncs[1]["id"])
         self.assertEqual(call("itemKey", "backup", {"tag": "7"}), "backup:7")
         self.assertEqual(call("itemKey", "sync", None), "")
+
+    def test_transfers_are_summarised_per_direction(self):
+        transfers = {"downloads": 1200, "downloaded": "1.20 GB", "downloadTotal": "4.80 GB", "downloadPercent": 25.0,
+                     "uploads": 3, "uploaded": "10.00 MB", "uploadTotal": "20.00 MB", "uploadPercent": 50.4}
+        self.assertEqual(call("transfersText", transfers).split("\n"),
+                         ["1,200 down · 1.20 GB of 4.80 GB (25%)", "3 up · 10.00 MB of 20.00 MB (50%)"])
+        self.assertEqual(call("transfersText", dict(transfers, downloads=0, uploads=0)), "")
 
     def test_a_stopped_engine_has_its_own_state(self):
         status = dict(fixture("ok.json"), running=False, loggedIn=False)
