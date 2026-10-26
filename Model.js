@@ -163,8 +163,11 @@ function storageLevel(percent) {
 }
 
 // Current problems worth a notification, each {key, title, body}. The key
-// identifies the problem, so the same problem is only reported once.
-function problems(status, home) {
+// identifies the problem, so the same problem is only reported once. The
+// texts name no folder: they go to the notification command as arguments,
+// which other local accounts can read, and the panel the notification opens
+// shows the folder.
+function problems(status) {
   var list = []
   if (!status || !status.loggedIn) return list
   var syncs = status.syncs || []
@@ -174,7 +177,7 @@ function problems(status, home) {
     list.push({
       key: "sync:" + syncs[i].id + ":" + reason,
       title: "MEGA sync stopped",
-      body: homePath(syncs[i].local, home) + ": " + reason
+      body: reason + ". Open the MEGA panel to see which folder."
     })
   }
   var backups = status.backups || []
@@ -183,7 +186,7 @@ function problems(status, home) {
     list.push({
       key: "backup:" + backups[j].tag + ":" + backups[j].lastName,
       title: "MEGA backup " + String(backups[j].lastStatus).toLowerCase(),
-      body: homePath(backups[j].local, home) + " (" + backups[j].lastDate + ")"
+      body: "Last run " + backups[j].lastDate + ". Open the MEGA panel to see which folder."
     })
   }
   return list
