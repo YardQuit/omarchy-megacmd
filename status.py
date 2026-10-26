@@ -9,19 +9,46 @@ and prints one JSON object on stdout:
     {"ok", "loggedIn", "email", "usedBytes", "totalBytes", "usagePercent",
      "syncs": [...], "backups": [...], "transfers": {...}, "error"}
 
+When the MEGAcmd engine (mega-cmd-server) is not running, it prints
+"running": false and runs no mega-* command: each of them would start the
+engine again.
+
 Usage: status.py [TIMEOUT_SECONDS]
        status.py --fixture FILE   (print a saved state instead, for previews and tests)
 """
 
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
 
 SYNC_COLUMNS = ["ID", "LOCALPATH", "REMOTEPATH", "RUN_STATE", "STATUS", "ERROR", "SIZE", "FILES", "DIRS"]
+# Column separator for the sync table: the ASCII unit separator, which a
+# folder name cannot contain, unlike "|".
+SEPARATOR = "\x1f"
+# A MEGAcmd sync ID; it never starts with "-", so it cannot pass for an option.
+SYNC_ID = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_-]*$")
 WIDE_PATHS = "--path-display-size=4096"
 ROW_SPLIT = re.compile(r"\s{2,}")
+
+
+def to_int(text):
+    """Return TEXT as an integer, or 0 when it is not one."""
+    try:
+        return int(str(text).strip())
+    except ValueError:
+        return 0
+
+
+def engine_running():
+    """True when this user's MEGAcmd engine is running; checked without starting it."""
+    try:
+        found = subprocess.run(["pgrep", "-u", str(os.getuid()), "-x", "mega-cmd-server"], capture_output=True)
+    except FileNotFoundError:
+        return True
+    return found.returncode == 0
 
 
 def run(args, timeout):
@@ -44,13 +71,23 @@ def parse_storage(text):
 
 
 def parse_syncs(text):
-    """Return the syncs listed by `mega-sync` with a "|" column separator."""
+    """Return (syncs, unreadable) from `mega-sync` output separated by SEPARATOR.
+
+    A line is a sync only when it has every column, a valid sync ID and an
+    absolute local path; any other line except the header and blank lines is
+    counted as unreadable. A folder name containing a line break therefore
+    cannot pose as a sync of its own.
+    """
     syncs = []
+    unreadable = 0
     for line in text.splitlines():
-        parts = line.split("|")
-        if len(parts) != len(SYNC_COLUMNS) or parts[0] == "ID":
+        parts = [p.strip() for p in line.split(SEPARATOR)]
+        if not line.strip() or parts[0] == "ID":
             continue
-        row = dict(zip(SYNC_COLUMNS, (p.strip() for p in parts)))
+        if len(parts) != len(SYNC_COLUMNS) or not SYNC_ID.match(parts[0]) or not parts[1].startswith("/"):
+            unreadable += 1
+            continue
+        row = dict(zip(SYNC_COLUMNS, parts))
         syncs.append({
             "id": row["ID"],
             "local": row["LOCALPATH"],
@@ -59,15 +96,15 @@ def parse_syncs(text):
             "status": row["STATUS"],
             "error": "" if row["ERROR"] in ("", "NO") else row["ERROR"],
             "size": re.sub(r"\s+", " ", row["SIZE"]),
-            "files": int(row["FILES"] or 0),
-            "dirs": int(row["DIRS"] or 0),
+            "files": to_int(row["FILES"]),
+            "dirs": to_int(row["DIRS"]),
         })
-    return syncs
+    return syncs, unreadable
 
 
 def split_backup_row(line):
     """Split a backup table row (TAG LOCALPATH REMOTEPARENTPATH STATUS)."""
-    match = re.match(r"^(\d+)\s+(.*\S)\s{2,}(/.*\S)\s{2,}(\S+)\s*$", line)
+    match = re.match(r"^(\d+)\s+(/.*\S)\s{2,}(/.*\S)\s{2,}(\S+)\s*$", line)
     if not match:
         return None
     return {"tag": match.group(1), "local": match.group(2), "remote": match.group(3), "state": match.group(4)}
@@ -90,7 +127,7 @@ def parse_backups(details, history):
             continue
         stripped = line.strip()
         if stripped.startswith("Max Backups:"):
-            current["maxBackups"] = int(stripped.split(":", 1)[1].strip() or 0)
+            current["maxBackups"] = to_int(stripped.split(":", 1)[1])
         elif stripped.startswith("Period:"):
             current["period"] = stripped.split(":", 1)[1].strip().strip('"')
         elif stripped.startswith("Next backup scheduled for:"):
@@ -158,10 +195,15 @@ def main():
         print_fixture(sys.argv[2])
         return
     timeout = float(sys.argv[1]) if len(sys.argv) > 1 else 20
-    status = {"ok": True, "installed": shutil.which("mega-whoami") is not None, "loggedIn": False, "email": "",
+    status = {"ok": True, "installed": shutil.which("mega-whoami") is not None, "running": True,
+              "loggedIn": False, "email": "",
               "usedBytes": 0, "totalBytes": 0, "usagePercent": 0.0,
               "syncs": [], "backups": [], "transfers": parse_transfers(""), "error": ""}
     if not status["installed"]:
+        print(json.dumps(status))
+        return
+    if not engine_running():
+        status["running"] = False
         print(json.dumps(status))
         return
 
@@ -178,8 +220,10 @@ def main():
     _, out = run(["mega-df"], timeout)
     status["usedBytes"], status["totalBytes"], status["usagePercent"] = parse_storage(out)
 
-    _, out = run(["mega-sync", "--col-separator=|", "--output-cols=" + ",".join(SYNC_COLUMNS)], timeout)
-    status["syncs"] = parse_syncs(out)
+    _, out = run(["mega-sync", "--col-separator=" + SEPARATOR, "--output-cols=" + ",".join(SYNC_COLUMNS)], timeout)
+    status["syncs"], unreadable = parse_syncs(out)
+    if unreadable:
+        status["error"] = "Some syncs could not be read; list them with mega-sync in a terminal"
 
     _, details = run(["mega-backup", "-l", WIDE_PATHS], timeout)
     _, history = run(["mega-backup", "-h", WIDE_PATHS], timeout)

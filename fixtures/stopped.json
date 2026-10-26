@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "installed": true,
+  "running": false,
+  "loggedIn": false,
+  "email": "",
+  "usedBytes": 0,
+  "totalBytes": 0,
+  "usagePercent": 0.0,
+  "syncs": [],
+  "backups": [],
+  "transfers": {
+    "downloads": 0,
+    "uploads": 0,
+    "downloaded": "",
+    "downloadTotal": "",
+    "uploaded": "",
+    "uploadTotal": "",
+    "downloadPercent": 0.0,
+    "uploadPercent": 0.0
+  },
+  "error": ""
+}

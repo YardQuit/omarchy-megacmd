@@ -10,8 +10,11 @@ instead of the MEGAsync desktop app.
 - A panel to pause, resume, add and remove sync folders and scheduled,
   versioned backups, with storage use and transfer progress.
 - A desktop notification once per problem: a sync error, a failed backup,
-  being logged out, and storage use crossing 90% and 95%. Notifications name
-  no folder; clicking one opens the panel, which shows it.
+  being logged out, the MEGAcmd engine stopping, and storage use crossing 90%
+  and 95%. Notifications name no folder; clicking one opens the panel, which
+  shows it.
+- The widget never starts the MEGAcmd engine by itself. When the engine is
+  stopped it says so, and "Start MEGAcmd" in the panel starts it again.
 
 ![The panel open under the bar icon](preview.png)
 
@@ -21,7 +24,7 @@ instead of the MEGAsync desktop app.
 - MEGAcmd. On Arch Linux it comes from MEGA's own signed repository; see
   [MEGA's Linux downloads](https://mega.io/cmd#download). The package is
   `megacmd`.
-- `python3`, `gum` and a Nerd Font, which Omarchy already provides.
+- `python3`, `gum`, `pgrep` and a Nerd Font, which Omarchy already provides.
 
 ## Installation
 
@@ -108,8 +111,10 @@ The widget answers `omarchy-shell yardquit.mega <command>`:
 | `live` | Return to the live state |
 
 The saved states are `ok`, `syncing`, `paused`, `sync-error`,
-`backup-failed`, `storage-90`, `storage-95` and `logged-out`. Previews also
-send their notifications, marked "(preview)".
+`backup-failed`, `storage-90`, `storage-95`, `logged-out` and `stopped`.
+Previews also send their notifications, marked "(preview)". While a preview
+is shown, the panel's actions do nothing, as its syncs and backups are only
+examples.
 
 ## Development
 

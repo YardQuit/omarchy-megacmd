@@ -10,8 +10,9 @@ import "Model.js" as Model
 // mega-* commands behind the panel's actions. Refreshes quickly while
 // `fastRefresh` is set (the panel is open) and every `refreshIntervalSec`
 // otherwise. Sends a notification once per problem (sync error, failed
-// backup, logout) and when storage use crosses 90% or 95%. Setting
-// `previewName` to a file name in fixtures/ shows that saved state instead.
+// backup, logout, the engine stopping) and when storage use crosses 90% or
+// 95%. Setting `previewName` to a file name in fixtures/ shows that saved
+// state instead; actions do nothing while a preview is shown.
 Item {
   id: root
 
@@ -20,6 +21,7 @@ Item {
   property string previewName: ""
 
   property bool installed: true
+  property bool running: true
   property bool loggedIn: false
   property string email: ""
   property double usedBytes: 0
@@ -35,7 +37,8 @@ Item {
   readonly property string pluginDir: decodeURIComponent(String(Qt.resolvedUrl(".")).replace(/^file:\/\//, "")).replace(/\/$/, "")
   // The saved states in fixtures/ are written for the home folder /home/user.
   readonly property string home: previewName !== "" ? "/home/user" : Quickshell.env("HOME")
-  readonly property string kind: Model.overallKind({ loggedIn: loggedIn, syncs: syncs, transfers: transfers, usagePercent: usagePercent })
+  readonly property string kind: Model.overallKind({ running: running, loggedIn: loggedIn, syncs: syncs, transfers: transfers, usagePercent: usagePercent })
+  readonly property bool anyRunning: Model.anyRunning(syncs)
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 60, 10, 3600)
   readonly property string syncFolder: String(setting("syncFolder", "/"))
   readonly property string backupFolder: String(setting("backupFolder", "/Backups"))
@@ -45,6 +48,8 @@ Item {
   property var _reported: ({})
   property int _storageLevel: 0
   property bool _wasLoggedIn: false
+  property bool _wasRunning: true
+  property bool _quietNextReport: false
 
   function setting(name, fallback) {
     var value = settings ? settings[name] : undefined
@@ -72,6 +77,7 @@ Item {
       return
     }
     installed = data.installed !== false
+    running = data.running !== false
     loggedIn = data.loggedIn === true
     email = String(data.email || "")
     usedBytes = Number(data.usedBytes || 0)
@@ -88,16 +94,30 @@ Item {
   // Shows the MEGA status as of the saved state `name` (see fixtures/), or
   // the live state again when `name` is empty.
   function preview(name) {
+    var leaving = previewName !== "" && String(name || "") === ""
     previewName = String(name || "").replace(/[^A-Za-z0-9_-]/g, "")
     _reported = ({})
     _storageLevel = 0
+    // Back on the live state, its problems were already reported before the
+    // preview: take them in again without notifying.
+    _quietNextReport = leaving
     refresh()
   }
 
+  // False, with a note in the panel, while a preview is shown: its syncs and
+  // backups are saved examples, not the account's.
+  function actionsAllowed() {
+    if (previewName === "") return true
+    actionStatus = "Preview: actions are off"
+    actionStatusTimer.restart()
+    return false
+  }
+
   function notify(title, body, urgency, glyph) {
+    if (_quietNextReport) return
     var label = previewName !== "" ? " (preview)" : ""
     Quickshell.execDetached(["omarchy-notification-send", "--app-name", "MEGA", "-u", urgency, "-g", glyph,
-                             title + label, body, "--exec", "omarchy-shell", "yardquit.mega", "open"])
+                             title + label, Model.escapeMarkup(body), "--exec", "omarchy-shell", "yardquit.mega", "open"])
   }
 
   // Notifies about problems not yet reported; forgets those that cleared.
@@ -110,7 +130,9 @@ Item {
     }
     _reported = reported
 
-    if (_wasLoggedIn && !loggedIn) notify("MEGA logged out", "Syncs and backups have stopped. Log in again from the MEGA panel.", "critical", Model.ICON_OFF)
+    if (_wasRunning && !running) notify("MEGAcmd stopped", "Syncs and backups are not running. Start it again from the MEGA panel.", "critical", Model.ICON_OFF)
+    else if (_wasLoggedIn && !loggedIn && running) notify("MEGA logged out", "Syncs and backups have stopped. Log in again from the MEGA panel.", "critical", Model.ICON_OFF)
+    _wasRunning = running
     _wasLoggedIn = loggedIn
 
     var level = loggedIn ? Model.storageLevel(usagePercent) : 0
@@ -118,10 +140,12 @@ Item {
       notify("MEGA storage " + Math.round(usagePercent) + "% full", Model.usageText(usedBytes, totalBytes, usagePercent),
              level >= 95 ? "critical" : "normal", Model.ICON_CLOUD)
     _storageLevel = level
+    _quietNextReport = false
   }
 
   // Runs mega-* commands one after another, then refreshes.
   function runCommands(commands) {
+    if (!actionsAllowed()) return
     _queue = _queue.concat(commands)
     if (!controlProcess.running) runNext()
   }
@@ -139,6 +163,8 @@ Item {
   function pauseSync(sync) { if (sync) runCommands([["mega-sync", "--pause", sync.id]]) }
   function resumeSync(sync) { if (sync) runCommands([["mega-sync", "--enable", sync.id]]) }
   function toggleSync(sync) { if (Model.syncPaused(sync)) resumeSync(sync); else pauseSync(sync) }
+  // Pauses every sync while any is running, otherwise resumes them all.
+  function toggleAll() { setAllPaused(anyRunning) }
   function removeSync(sync) { if (sync) runCommands([["mega-sync", "--delete", sync.id]]) }
   function removeBackup(backup) { if (backup) runCommands([["mega-backup", "-d", backup.tag]]) }
 
@@ -151,8 +177,11 @@ Item {
     if (commands.length > 0) runCommands(commands)
   }
 
+  // Opens a local folder in the file manager; only absolute paths, so a
+  // value can never pass for an option or a network address.
   function openFolder(path) {
-    if (path) Quickshell.execDetached(["uwsm-app", "--", "nautilus", String(path)])
+    var folder = String(path || "")
+    if (folder.charAt(0) === "/" && actionsAllowed()) Quickshell.execDetached(["uwsm-app", "--", "nautilus", folder])
   }
 
   function openWeb() {
@@ -160,6 +189,7 @@ Item {
   }
 
   function runGuided(script, args) {
+    if (!actionsAllowed()) return
     Quickshell.execDetached(["omarchy-launch-floating-terminal-with-presentation",
                              [pluginDir + "/bin/" + script].concat(args || []).map(function(a) { return "'" + String(a).replace(/'/g, "'\\''") + "'" }).join(" ")])
     guidedRefresh.restart()

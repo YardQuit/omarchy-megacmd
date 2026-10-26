@@ -80,7 +80,7 @@ Panel {
   function activate(target) {
     var parts = String(target).split(":")
     if (target === "login") mega.login()
-    else if (target === "header") mega.setAllPaused(mega.kind !== "paused")
+    else if (target === "header") mega.toggleAll()
     else if (parts[0] === "sync") mega.toggleSync(itemFor(target))
     else if (parts[0] === "backup") mega.editBackup(itemFor(target))
     else if (target === "addSync") mega.addSync()
@@ -93,17 +93,21 @@ Panel {
     if (item) mega.openFolder(item.local)
   }
 
-  // Removing asks twice: the first request arms it, the second removes.
+  // Removing asks twice: the first request arms it, the second removes. The
+  // sync or backup is armed by its ID, so a list that changed between the two
+  // requests arms the row's new item instead of removing it.
   function requestRemove(target) {
+    var kind = String(target).split(":")[0]
     var item = itemFor(target)
-    if (!item) return
-    if (pendingRemove !== target) {
-      pendingRemove = target
+    var key = Model.itemKey(kind, item)
+    if (key === "") return
+    if (pendingRemove !== key) {
+      pendingRemove = key
       removeDisarm.restart()
       return
     }
     pendingRemove = ""
-    if (String(target).indexOf("sync:") === 0) mega.removeSync(item)
+    if (kind === "sync") mega.removeSync(item)
     else mega.removeBackup(item)
   }
 
@@ -165,7 +169,7 @@ Panel {
     }
     tooltipText: mega.loggedIn ? "MEGA: " + Model.overallText(root.kind) : "MEGA: not logged in"
     onPressed: function(buttonCode) {
-      if (buttonCode === Qt.RightButton) mega.setAllPaused(mega.kind !== "paused")
+      if (buttonCode === Qt.RightButton) mega.toggleAll()
       else if (buttonCode === Qt.MiddleButton) mega.refresh()
       else root.toggle()
     }
@@ -196,7 +200,7 @@ Panel {
         else if (t === "o" || t === "O") root.openTarget(root.cursorTarget)
         else if ((t === "s" || t === "S") && String(root.cursorTarget).indexOf("backup:") === 0) mega.editBackup(root.itemFor(root.cursorTarget))
         else if (t === "x" || t === "X") root.requestRemove(root.cursorTarget)
-        else if (t === "p" || t === "P") mega.setAllPaused(mega.kind !== "paused")
+        else if (t === "p" || t === "P") mega.toggleAll()
       }
 
       Flickable {
@@ -225,7 +229,7 @@ Panel {
               id: hero
               width: parent.width
               title: "MEGA"
-              meta: mega.loggedIn ? Model.overallText(root.kind) : (mega.installed ? "Not logged in" : "MEGAcmd is not installed")
+              meta: mega.installed ? Model.overallText(root.kind) : "MEGAcmd is not installed"
               detail: mega.email
               foreground: root.foreground
               fontFamily: root.fontFamily
@@ -243,16 +247,16 @@ Panel {
                 ToggleSwitch {
                   id: syncSwitch
                   visible: mega.loggedIn && mega.syncs.length > 0
-                  checked: root.kind !== "paused"
+                  checked: mega.anyRunning
                   busy: mega.busy
                   hasCursor: header.ringVisible
                   foreground: hero.foreground
                   onHovered: function(on) { if (on) root.setCursor("header") }
-                  onToggled: mega.setAllPaused(root.kind !== "paused")
+                  onToggled: mega.toggleAll()
 
                   PanelToolTip {
                     visible: syncSwitch.containsMouse
-                    text: root.kind === "paused" ? "Resume all syncing" : "Pause all syncing"
+                    text: mega.anyRunning ? "Pause all syncing" : "Resume all syncing"
                     fontFamily: hero.fontFamily
                   }
                 }
@@ -276,8 +280,9 @@ Panel {
             width: parent.width
             target: "login"
             glyph: "󰌆"
-            title: "Log in to MEGA"
-            meta: "Opens a terminal for your email, password and 2FA code"
+            title: mega.running ? "Log in to MEGA" : "Start MEGAcmd"
+            meta: mega.running ? "Opens a terminal for your email, password and 2FA code"
+                               : "Starts the engine in a terminal; logs in too if needed"
           }
 
           Column {
@@ -319,6 +324,7 @@ Panel {
                 required property int index
                 width: parent.width
                 target: "sync:" + index
+                itemKey: Model.itemKey("sync", modelData)
                 iconKind: Model.syncKind(modelData)
                 title: Model.homePath(modelData.local, mega.home) + "  ↔  " + modelData.remote
                 meta: Model.syncMeta(modelData)
@@ -352,6 +358,7 @@ Panel {
                 required property int index
                 width: parent.width
                 target: "backup:" + index
+                itemKey: Model.itemKey("backup", modelData)
                 glyph: Model.ICON_BACKUP
                 glyphColor: Model.backupFailed(modelData) ? root.stateColors.red : (modelData.lastStatus ? root.stateColors.green : root.foreground)
                 title: Model.homePath(modelData.local, mega.home) + "  →  " + modelData.remote
@@ -453,6 +460,7 @@ Panel {
   component ItemRow: CursorSurface {
     id: itemRow
     property string target: ""
+    property string itemKey: ""
     property string iconKind: ""
     property string glyph: ""
     property color glyphColor: root.foreground
@@ -460,7 +468,7 @@ Panel {
     property string meta: ""
     property string toggleGlyph: ""
     property string toggleTip: ""
-    readonly property bool armed: root.pendingRemove === target
+    readonly property bool armed: itemKey !== "" && root.pendingRemove === itemKey
 
     hasCursor: root.hasCursor(target)
     foreground: root.foreground
