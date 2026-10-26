@@ -7,9 +7,11 @@
   "license": "GPL-3.0-or-later",
   "description": "MEGA sync folders, backups, storage and transfers in the Omarchy bar, using MEGAcmd.",
   "kinds": [
+    "service",
     "bar-widget"
   ],
   "entryPoints": {
+    "service": "Service.qml",
     "barWidget": "Panel.qml"
   },
   "barWidget": {
