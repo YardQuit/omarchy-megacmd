@@ -1,6 +1,7 @@
 # test_model.py: tests for the notification texts Model.js builds.
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Tests for Model.problems(), the notifications the widget sends by itself.
+"""Tests for Model.js: the notifications the widget sends by itself and the
+state its panel actions are decided on.
 
 Model.js is a QML JavaScript library; these tests load it in Node, so they
 are skipped where Node is not installed.
@@ -17,25 +18,36 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 HOME = "/home/user"
 
-# Loads Model.js without its QML ".pragma library" line and prints, as JSON,
-# the problems it reports for the status read from standard input.
+# Loads Model.js without its QML ".pragma library" line, calls the function
+# named in argv[2] with the JSON array of arguments read from standard input,
+# and prints the result as JSON.
 RUNNER = """
 const fs = require("fs");
 const vm = require("vm");
 const source = fs.readFileSync(process.argv[1], "utf8").replace(/^\\.pragma library$/m, "");
 const context = {};
 vm.runInNewContext(source, context);
-const status = JSON.parse(fs.readFileSync(0, "utf8"));
-process.stdout.write(JSON.stringify(context.problems(status)));
+const args = JSON.parse(fs.readFileSync(0, "utf8"));
+process.stdout.write(JSON.stringify(context[process.argv[2]](...args)));
 """
 
 
-def problems(fixture):
+def call(function, *args):
+    """Returns what Model.js's FUNCTION gives for ARGS."""
+    result = subprocess.run(["node", "-e", RUNNER, str(ROOT / "Model.js"), function],
+                            input=json.dumps(args), capture_output=True, text=True, check=True)
+    return json.loads(result.stdout)
+
+
+def fixture(name):
+    """The saved status in fixtures/NAME."""
+    return json.loads((ROOT / "fixtures" / name).read_text())
+
+
+def problems(name):
     """Returns the problems Model.problems() reports for a fixture, and the fixture."""
-    status = json.loads((ROOT / "fixtures" / fixture).read_text())
-    result = subprocess.run(["node", "-e", RUNNER, str(ROOT / "Model.js")],
-                            input=json.dumps(status), capture_output=True, text=True, check=True)
-    return json.loads(result.stdout), status
+    status = fixture(name)
+    return call("problems", status), status
 
 
 def local_paths(status):
@@ -69,6 +81,35 @@ class NotificationTests(unittest.TestCase):
     def test_healthy_status_reports_nothing(self):
         found, _ = problems("ok.json")
         self.assertEqual(found, [])
+
+    def test_markup_in_a_notification_text_is_shown_as_text(self):
+        # Notification bodies are rendered as styled text; an error text from
+        # MEGAcmd must not turn into formatting.
+        self.assertEqual(call("escapeMarkup", 'a <b>bold</b> & "x"'), 'a &lt;b&gt;bold&lt;/b&gt; &amp; "x"')
+
+
+@unittest.skipUnless(shutil.which("node"), "Node is not installed")
+class ActionStateTests(unittest.TestCase):
+    def test_all_paused_with_storage_nearly_full_can_still_be_resumed(self):
+        status = fixture("storage-95.json")
+        for sync in status["syncs"]:
+            sync["runState"] = "Disabled"
+        self.assertEqual(call("overallKind", status), "warning")
+        self.assertFalse(call("anyRunning", status["syncs"]))
+
+    def test_one_running_sync_means_pause_all(self):
+        self.assertTrue(call("anyRunning", fixture("paused.json")["syncs"] + [{"runState": "Running"}]))
+
+    def test_removal_is_keyed_by_id_not_by_row(self):
+        syncs = fixture("ok.json")["syncs"]
+        self.assertEqual(call("itemKey", "sync", syncs[1]), "sync:" + syncs[1]["id"])
+        self.assertEqual(call("itemKey", "backup", {"tag": "7"}), "backup:7")
+        self.assertEqual(call("itemKey", "sync", None), "")
+
+    def test_a_stopped_engine_has_its_own_state(self):
+        status = dict(fixture("ok.json"), running=False, loggedIn=False)
+        self.assertEqual(call("overallKind", status), "stopped")
+        self.assertEqual(call("overallText", "stopped"), "MEGAcmd is not running")
 
 
 if __name__ == "__main__":

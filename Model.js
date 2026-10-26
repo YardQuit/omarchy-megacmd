@@ -42,6 +42,22 @@ function syncPaused(sync) {
   return state === "Disabled" || state === "Suspended"
 }
 
+// True when at least one of `syncs` is running, so "pause all" applies;
+// otherwise "resume all" does.
+function anyRunning(syncs) {
+  var list = syncs || []
+  for (var i = 0; i < list.length; i++)
+    if (!syncPaused(list[i])) return true
+  return false
+}
+
+// Identifies a sync ("sync:<id>") or backup ("backup:<tag>") across
+// refreshes, unlike its row number; "" when `item` is missing.
+function itemKey(kind, item) {
+  if (!item) return ""
+  return kind + ":" + (kind === "sync" ? item.id : item.tag)
+}
+
 // One of "error", "paused", "syncing", "synced" for a sync row.
 function syncKind(sync) {
   if (!sync) return "synced"
@@ -116,9 +132,11 @@ function transfersText(transfers) {
   return parts.join("\n")
 }
 
-// Overall state for the bar icon, most serious first: "off", "error",
-// "warning" (storage 90% or more), "paused", "syncing", "synced".
+// Overall state for the bar icon, most serious first: "stopped" (the MEGAcmd
+// engine is not running), "off" (logged out), "error", "warning" (storage 90%
+// or more), "paused", "syncing", "synced".
 function overallKind(status) {
+  if (status && status.running === false) return "stopped"
   if (!status || !status.loggedIn) return "off"
   var syncs = status.syncs || []
   var transfers = status.transfers || {}
@@ -138,6 +156,7 @@ function overallKind(status) {
 
 // Short phrase for the panel header.
 function overallText(kind) {
+  if (kind === "stopped") return "MEGAcmd is not running"
   if (kind === "off") return "Not logged in"
   if (kind === "error") return "A sync needs attention"
   if (kind === "warning") return "Storage almost full"
@@ -195,7 +214,7 @@ function problems(status) {
 // Small badge drawn on the cloud for an overall state.
 function badgeGlyph(kind) {
   if (kind === "error" || kind === "warning") return ""
-  if (kind === "off") return ""
+  if (kind === "off" || kind === "stopped") return ""
   if (kind === "paused") return ""
   if (kind === "syncing") return ""
   return ""
@@ -204,8 +223,14 @@ function badgeGlyph(kind) {
 // Theme colour name for a state's badge: red, orange, yellow, blue or green.
 function badgeColorName(kind) {
   if (kind === "error") return "red"
-  if (kind === "warning" || kind === "off") return "orange"
+  if (kind === "warning" || kind === "off" || kind === "stopped") return "orange"
   if (kind === "paused") return "yellow"
   if (kind === "syncing") return "blue"
   return "green"
+}
+
+// TEXT with "&", "<" and ">" escaped, for notification bodies, which the
+// notification daemon renders as styled text.
+function escapeMarkup(text) {
+  return String(text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
