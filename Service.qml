@@ -102,7 +102,7 @@ Item {
 
   // Notifies about problems not yet reported; forgets those that cleared.
   function reportProblems(data) {
-    var current = Model.problems(data, home)
+    var current = Model.problems(data)
     var reported = ({})
     for (var i = 0; i < current.length; i++) {
       reported[current[i].key] = true

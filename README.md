@@ -10,7 +10,8 @@ instead of the MEGAsync desktop app.
 - A panel to pause, resume, add and remove sync folders and scheduled,
   versioned backups, with storage use and transfer progress.
 - A desktop notification once per problem: a sync error, a failed backup,
-  being logged out, and storage use crossing 90% and 95%.
+  being logged out, and storage use crossing 90% and 95%. Notifications name
+  no folder; clicking one opens the panel, which shows it.
 
 ![The panel open under the bar icon](preview.png)
 
