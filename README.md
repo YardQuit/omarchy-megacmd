@@ -138,8 +138,8 @@ python3 -m unittest discover -s tests
 | File | Purpose |
 |---|---|
 | `status.py` | Collects MEGAcmd's state and prints it as JSON |
-| `Service.qml` | Polls `status.py`, runs actions, sends notifications |
-| `Panel.qml` | Bar button and panel |
+| `Service.qml` | The plugin's service, loaded once: polls `status.py`, runs actions, sends notifications |
+| `Panel.qml` | Bar button and panel, one per bar, all showing the service's state |
 | `MegaIcon.qml` | Cloud icon with the state badge |
 | `ThemePalette.qml` | Reads the theme's colours for the badges |
 | `Model.js` | Display text and state rules |

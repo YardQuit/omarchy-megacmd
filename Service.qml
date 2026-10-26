@@ -6,18 +6,20 @@ import Quickshell.Io
 import qs.Commons
 import "Model.js" as Model
 
-// Polls status.py for the account, syncs, backups and transfers, and runs the
-// mega-* commands behind the panel's actions. Refreshes quickly while
-// `fastRefresh` is set (the panel is open) and every `refreshIntervalSec`
-// otherwise. Sends a notification once per problem (sync error, failed
+// The plugin's service: one instance for the whole shell, whose state every
+// bar's panel shows. Polls status.py for the account, syncs, backups and
+// transfers, and runs the mega-* commands behind the panels' actions.
+// Refreshes quickly while a panel is open on any screen (see setPanelOpen)
+// and every `refreshIntervalSec` otherwise. Sends a notification once per problem (sync error, failed
 // backup, logout, the engine stopping) and when storage use crosses 90% or
 // 95%. Setting `previewName` to a file name in fixtures/ shows that saved
 // state instead; actions do nothing while a preview is shown.
 Item {
   id: root
 
+  // The widget's settings, handed over by the panels.
   property var settings: ({})
-  property bool fastRefresh: false
+  readonly property bool fastRefresh: _openPanels.length > 0
   property string previewName: ""
 
   property bool installed: true
@@ -50,6 +52,7 @@ Item {
   property bool _wasLoggedIn: false
   property bool _wasRunning: true
   property bool _quietNextReport: false
+  property var _openPanels: []
 
   function setting(name, fallback) {
     var value = settings ? settings[name] : undefined
@@ -60,6 +63,14 @@ Item {
     var n = parseInt(String(setting(name, fallback)), 10)
     if (!isFinite(n)) n = fallback
     return Math.max(min, Math.min(max, n))
+  }
+
+  // Records whether `panel` is open; refreshes at once when the first opens.
+  function setPanelOpen(panel, open) {
+    var others = _openPanels.filter(function(p) { return p !== panel })
+    var wasFast = fastRefresh
+    _openPanels = open ? others.concat([panel]) : others
+    if (fastRefresh && !wasFast) refresh()
   }
 
   function refresh() {

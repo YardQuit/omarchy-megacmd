@@ -15,6 +15,9 @@ import "Model.js" as Model
 // action; "o" opens its folder, "s" opens a backup's settings, "x" twice
 // removes it, "r" refreshes.
 //
+// Every bar's panel shows the one shared state of the plugin's service
+// (Service.qml), which the shell loads once.
+//
 // IPC target "yardquit.mega": open, close, toggle, refresh, status, and
 // preview NAME / live to show a saved state from fixtures/.
 Panel {
@@ -26,6 +29,9 @@ Panel {
   property bool cursorActive: false
   property int cursorIndex: 0
   property string pendingRemove: ""
+
+  // The plugin's service, or `offline` until the shell has loaded it.
+  property var mega: offline
 
   readonly property color foreground: bar ? bar.foreground : Commons.Color.foreground
   readonly property color urgent: bar ? bar.urgent : Commons.Color.urgent
@@ -114,19 +120,73 @@ Panel {
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
-  onOpenedChanged: if (opened) {
+  onOpenedChanged: {
+    mega.setPanelOpen(root, opened)
+    if (!opened) return
     cursorActive = false
     cursorIndex = 0
     pendingRemove = ""
     if (panelFlick) panelFlick.contentY = 0
-    mega.refresh()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
+  onSettingsChanged: mega.settings = settings
+  Component.onCompleted: findService()
+  Component.onDestruction: mega.setPanelOpen(root, false)
 
-  Service {
-    id: mega
-    settings: root.settings
-    fastRefresh: root.opened
+  // Looks up the plugin's service and hands it this widget's settings; until
+  // the shell has loaded it, `serviceRetry` keeps looking.
+  function findService() {
+    var service = bar && bar.shell ? bar.shell.serviceFor("yardquit.mega") : null
+    if (!service) {
+      serviceRetry.start()
+      return
+    }
+    serviceRetry.stop()
+    mega = service
+    mega.settings = settings
+    if (opened) mega.setPanelOpen(root, true)
+  }
+
+  Timer {
+    id: serviceRetry
+    interval: 1000
+    repeat: true
+    onTriggered: root.findService()
+  }
+
+  // Stands in for the service until it is loaded: shows that, and does nothing.
+  QtObject {
+    id: offline
+    property var settings: ({})
+    readonly property bool installed: true
+    readonly property bool running: true
+    readonly property bool loggedIn: false
+    readonly property string email: ""
+    readonly property double usedBytes: 0
+    readonly property double totalBytes: 0
+    readonly property double usagePercent: 0
+    readonly property var syncs: []
+    readonly property var backups: []
+    readonly property var transfers: ({})
+    readonly property string lastError: "MEGA service not loaded"
+    readonly property string actionStatus: ""
+    readonly property string home: ""
+    readonly property string kind: "off"
+    readonly property bool anyRunning: false
+    readonly property bool busy: false
+    function setPanelOpen(panel, open) {}
+    function refresh() {}
+    function preview(name) {}
+    function toggleAll() {}
+    function toggleSync(sync) {}
+    function removeSync(sync) {}
+    function removeBackup(backup) {}
+    function editBackup(backup) {}
+    function addSync() {}
+    function addBackup() {}
+    function login() {}
+    function openFolder(path) {}
+    function openWeb() {}
   }
 
   IpcHandler {
