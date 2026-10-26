@@ -1,5 +1,6 @@
 # guided.sh: shared steps for the MEGA widget's guided terminal dialogs.
 # SPDX-License-Identifier: GPL-3.0-or-later
+# shellcheck shell=bash
 #
 # Sourced by mega-add-sync and mega-add-backup. Needs gum and MEGAcmd.
 

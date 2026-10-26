@@ -61,8 +61,7 @@ Item {
 
   function intSetting(name, fallback, min, max) {
     var n = parseInt(String(setting(name, fallback)), 10)
-    if (!isFinite(n)) n = fallback
-    return Math.max(min, Math.min(max, n))
+    return Util.clamp(isFinite(n) ? n : fallback, min, max)
   }
 
   // Records whether `panel` is open; refreshes at once when the first opens.
@@ -75,9 +74,8 @@ Item {
 
   function refresh() {
     if (statusProcess.running) return
-    statusProcess.command = previewName !== ""
-      ? ["python3", "-I", pluginDir + "/status.py", "--fixture", pluginDir + "/fixtures/" + previewName + ".json"]
-      : ["python3", "-I", pluginDir + "/status.py", "20"]
+    var source = previewName !== "" ? ["--fixture", pluginDir + "/fixtures/" + previewName + ".json"] : ["20"]
+    statusProcess.command = ["python3", "-I", pluginDir + "/status.py"].concat(source)
     statusProcess.running = true
   }
 
@@ -202,7 +200,8 @@ Item {
   function runGuided(script, args) {
     if (!actionsAllowed()) return
     Quickshell.execDetached(["omarchy-launch-floating-terminal-with-presentation",
-                             [pluginDir + "/bin/" + script].concat(args || []).map(function(a) { return "'" + String(a).replace(/'/g, "'\\''") + "'" }).join(" ")])
+                             [pluginDir + "/bin/" + script].concat(args || []).map(Util.shellQuote).join(" ")])
+    guidedRefresh.ticks = 0
     guidedRefresh.restart()
   }
 

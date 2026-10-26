@@ -7,8 +7,8 @@
 
 set -uo pipefail
 
-if mega-whoami >/dev/null 2>&1; then
-  echo "Already logged in: $(mega-whoami 2>/dev/null | sed -n 's/^Account e-mail: *//p')"
+if account=$(mega-whoami 2>/dev/null); then
+  echo "Already logged in: $(sed -n 's/^Account e-mail: *//p' <<<"$account")"
   exit 0
 fi
 

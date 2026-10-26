@@ -99,16 +99,14 @@ class BackupTests(unittest.TestCase):
         "   -- CURRENT/LAST BACKUP --\n"
         "  FILES UP/TOT     FOLDERS CREATED           PROGRESS     \n"
         "       1/1                0            6.00/6.00  B  0.00%\n")
-    HISTORY = (
-        "TAG   LOCALPATH                         REMOTEPARENTPATH            STATUS\n"
-        "42    /home/user/Family Photos          /Backups                    ACTIVE\n"
+    LISTING = DETAILS + (
         "   -- HISTORY OF BACKUPS --\n"
         "  NAME                                         DATE                                  STATUS  FILES FOLDERS\n"
         "  Family Photos_bk_20261023020000              Fri, 23 Oct 2026 02:00:00 +0200     COMPLETE      9       1\n"
         "  Family Photos_bk_20261024020000              Sat, 24 Oct 2026 02:00:00 +0200   INCOMPLETE      4       1\n")
 
     def test_details_are_read(self):
-        (backup,) = status.parse_backups(self.DETAILS, "")
+        (backup,) = status.parse_backups(self.DETAILS)
         self.assertEqual(backup["tag"], "42")
         self.assertEqual(backup["local"], "/home/user/Family Photos")
         self.assertEqual(backup["remote"], "/Backups")
@@ -116,21 +114,25 @@ class BackupTests(unittest.TestCase):
         self.assertEqual(backup["period"], "0 0 2 * * *")
         self.assertEqual(backup["next"], "Sun, 25 Oct 2026 02:00:00 +0100")
 
+    def test_details_are_kept_once_the_history_follows(self):
+        (backup,) = status.parse_backups(self.LISTING)
+        self.assertEqual((backup["maxBackups"], backup["period"]), (7, "0 0 2 * * *"))
+
     def test_newest_history_entry_wins(self):
-        (backup,) = status.parse_backups(self.DETAILS, self.HISTORY)
+        (backup,) = status.parse_backups(self.LISTING)
         self.assertEqual(backup["lastName"], "Family Photos_bk_20261024020000")
         self.assertEqual(backup["lastStatus"], "INCOMPLETE")
 
     def test_no_backups(self):
-        self.assertEqual(status.parse_backups("No backup configured.", ""), [])
+        self.assertEqual(status.parse_backups("No backup configured."), [])
 
     def test_max_backups_that_is_not_a_number_does_not_break_the_status(self):
-        (backup,) = status.parse_backups(self.DETAILS.replace("Max Backups:   7", "Max Backups:   lots"), "")
+        (backup,) = status.parse_backups(self.DETAILS.replace("Max Backups:   7", "Max Backups:   lots"))
         self.assertEqual(backup["maxBackups"], 0)
 
     def test_a_backup_whose_local_path_is_not_absolute_is_ignored(self):
         details = self.DETAILS.replace("/home/user/Family Photos", "-x Family Photos")
-        self.assertEqual(status.parse_backups(details, ""), [])
+        self.assertEqual(status.parse_backups(details), [])
 
 
 class TransferTests(unittest.TestCase):

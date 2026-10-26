@@ -88,10 +88,15 @@ Panel {
     if (target === "login") mega.login()
     else if (target === "header") mega.toggleAll()
     else if (parts[0] === "sync") mega.toggleSync(itemFor(target))
-    else if (parts[0] === "backup") mega.editBackup(itemFor(target))
+    else if (parts[0] === "backup") editTarget(target)
     else if (target === "addSync") mega.addSync()
     else if (target === "addBackup") mega.addBackup()
     else if (target === "web") mega.openWeb()
+  }
+
+  // Opens the schedule and versions of the backup `target` names.
+  function editTarget(target) {
+    if (String(target).indexOf("backup:") === 0) mega.editBackup(itemFor(target))
   }
 
   function openTarget(target) {
@@ -258,7 +263,7 @@ Panel {
       onTextKey: function(t) {
         if (t === "r" || t === "R") mega.refresh()
         else if (t === "o" || t === "O") root.openTarget(root.cursorTarget)
-        else if ((t === "s" || t === "S") && String(root.cursorTarget).indexOf("backup:") === 0) mega.editBackup(root.itemFor(root.cursorTarget))
+        else if (t === "s" || t === "S") root.editTarget(root.cursorTarget)
         else if (t === "x" || t === "X") root.requestRemove(root.cursorTarget)
         else if (t === "p" || t === "P") mega.toggleAll()
       }
@@ -488,30 +493,10 @@ Panel {
         Layout.alignment: Qt.AlignVCenter
       }
 
-      ColumnLayout {
+      RowTexts {
         id: actionContent
-        Layout.fillWidth: true
-        spacing: Style.space(1)
-
-        Text {
-          textFormat: Text.PlainText
-          Layout.fillWidth: true
-          text: actionRow.title
-          color: root.foreground
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.body
-          elide: Text.ElideRight
-        }
-
-        Text {
-          textFormat: Text.PlainText
-          Layout.fillWidth: true
-          text: actionRow.meta
-          color: root.dim
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
-          elide: Text.ElideRight
-        }
+        title: actionRow.title
+        meta: actionRow.meta
       }
     }
   }
@@ -569,30 +554,12 @@ Panel {
         Layout.alignment: Qt.AlignVCenter
       }
 
-      ColumnLayout {
+      RowTexts {
         id: itemContent
-        Layout.fillWidth: true
-        spacing: Style.space(1)
-
-        Text {
-          textFormat: Text.PlainText
-          Layout.fillWidth: true
-          text: itemRow.title
-          color: root.foreground
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.body
-          elide: Text.ElideMiddle
-        }
-
-        Text {
-          textFormat: Text.PlainText
-          Layout.fillWidth: true
-          text: itemRow.armed ? "Press remove again to stop it (files stay where they are)" : itemRow.meta
-          color: itemRow.armed ? root.urgent : root.dim
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
-          elide: Text.ElideRight
-        }
+        title: itemRow.title
+        titleElide: Text.ElideMiddle
+        meta: itemRow.armed ? "Press remove again to stop it (files stay where they are)" : itemRow.meta
+        metaColor: itemRow.armed ? root.urgent : root.dim
       }
 
       PanelActionButton {
@@ -612,7 +579,7 @@ Panel {
         foreground: root.foreground
         fontFamily: root.fontFamily
         Layout.alignment: Qt.AlignVCenter
-        onClicked: mega.editBackup(root.itemFor(itemRow.target))
+        onClicked: root.editTarget(itemRow.target)
       }
 
       PanelActionButton {
@@ -633,6 +600,37 @@ Panel {
         Layout.alignment: Qt.AlignVCenter
         onClicked: root.requestRemove(itemRow.target)
       }
+    }
+  }
+
+  // A row's title with a smaller line below it.
+  component RowTexts: ColumnLayout {
+    property string title: ""
+    property string meta: ""
+    property int titleElide: Text.ElideRight
+    property color metaColor: root.dim
+
+    Layout.fillWidth: true
+    spacing: Style.space(1)
+
+    Text {
+      textFormat: Text.PlainText
+      Layout.fillWidth: true
+      text: parent.title
+      color: root.foreground
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.body
+      elide: parent.titleElide
+    }
+
+    Text {
+      textFormat: Text.PlainText
+      Layout.fillWidth: true
+      text: parent.meta
+      color: parent.metaColor
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.caption
+      elide: Text.ElideRight
     }
   }
 
