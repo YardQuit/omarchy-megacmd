@@ -37,26 +37,15 @@ Item {
     font.pixelSize: Math.max(1, Math.round(100 * root.size / Math.max(1, cloudMetrics.tightBoundingRect.width, cloudMetrics.tightBoundingRect.height)))
   }
 
-  Rectangle {
-    id: badge
+  StateBadge {
     width: Math.round(root.size * 0.72)
-    height: width
-    radius: width / 2
-    color: root.ringColor
+    kind: root.kind
+    badgeColor: root.badgeColor
+    ringColor: root.ringColor
+    fontFamily: root.fontFamily
     anchors.right: parent.right
     anchors.bottom: parent.bottom
     anchors.rightMargin: -Math.round(width * 0.25)
     anchors.bottomMargin: -Math.round(width * 0.2)
-
-    Text {
-      anchors.centerIn: parent
-      textFormat: Text.PlainText
-      renderType: Text.NativeRendering
-      text: Model.badgeGlyph(root.kind)
-      color: root.badgeColor
-      font.family: root.fontFamily
-      font.pixelSize: Math.round(badge.width * 0.8)
-      font.bold: true
-    }
   }
 }

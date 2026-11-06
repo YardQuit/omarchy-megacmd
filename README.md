@@ -150,6 +150,7 @@ python3 -m unittest discover -s tests
 | `Service.qml` | The plugin's service, loaded once: polls `status.py`, runs actions, sends notifications |
 | `Panel.qml` | Bar button and panel, one per bar, all showing the service's state |
 | `MegaIcon.qml` | Cloud icon with the state badge |
+| `StateBadge.qml` | Round badge with the state glyph |
 | `ThemePalette.qml` | Reads the theme's colours for the badges |
 | `Model.js` | Display text and state rules |
 | `bin/` | Guided terminal dialogs: log in, add a sync, add or change a backup |
