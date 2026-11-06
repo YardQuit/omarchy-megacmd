@@ -219,25 +219,26 @@ Panel {
     id: button
     anchors.fill: parent
     bar: root.bar
-    iconComponent: Component {
-      Item {
-        MegaIcon {
-          anchors.centerIn: parent
-          size: Style.font.body
-          kind: root.kind
-          color: root.barForeground
-          badgeColor: root.badgeColor
-          ringColor: root.bar ? root.bar.background : Commons.Color.background
-          fontFamily: root.fontFamily
-        }
-      }
-    }
+    // The cloud is the button's own glyph, so the bar sizes it like its other
+    // icons; the badge sits on top and takes no part in that sizing.
+    text: Model.ICON_CLOUD
     tooltipText: mega.loggedIn ? "MEGA: " + Model.overallText(root.kind) : "MEGA: not logged in"
     onPressed: function(buttonCode) {
       if (buttonCode === Qt.RightButton) mega.toggleAll()
       else if (buttonCode === Qt.MiddleButton) mega.refresh()
       else root.toggle()
     }
+  }
+
+  StateBadge {
+    width: Math.round(button.glyphPaintedHeight * 0.75)
+    x: (button.width + button.glyphPaintedWidth) / 2 - width * 0.55
+    y: (button.height + button.glyphPaintedHeight) / 2 - width * 0.6
+    visible: button.glyphPaintedWidth > 0
+    kind: root.kind
+    badgeColor: root.badgeColor
+    ringColor: root.bar ? root.bar.background : Commons.Color.background
+    fontFamily: root.fontFamily
   }
 
   KeyboardPanel {
